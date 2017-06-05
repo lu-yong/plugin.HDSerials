@@ -1,7 +1,7 @@
 /**
  * HDSerials plugin for Movian
  *
- *  Copyright (C) 2015 Buksa, Wain
+ *  Copyright (C) 2015-2017 Buksa, Wain
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,13 +16,13 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-//ver 1.0.15
+//ver 1.1.1
 var plugin = JSON.parse(Plugin.manifest);
 
 var PREFIX = plugin.id;
 var BASE_URL = 'http://hdserials.galanov.net';
 var LOGO = Plugin.path + "logo.png";
-var UA = 'Android;HD Serials v.1.14.28;ru-RU;google Nexus 4;SDK 10;v.2.3.3(REL)';
+var UA = 'Android;HD Serials v.1.14.40;ru-RU;google Nexus 4;SDK 10;v.2.3.3(REL)';
 var page = require('showtime/page');
 var service = require("showtime/service");
 var settings = require('showtime/settings');
@@ -62,6 +62,11 @@ io.httpInspectorCreate('https://.*moonwalk.cc/.*', function(ctrl) {
   return 0;
 });
 
+io.httpInspectorCreate('http.*streamblast.cc.*', function(ctrl) {
+    ctrl.setHeader('User-Agent', UA);
+    ctrl.setHeader("Referer", "http://streamblast.cc");
+    return 0;
+});
 // Create the service (ie, icon on home screen)
 service.create(plugin.title, PREFIX + ":start", "video", true, LOGO);
 
@@ -216,47 +221,82 @@ function videoPage(page, data) {
     resp = http.request(data.url, {
       method: "GET",
       headers: {
-        Referer: BASE_URL
+                Referer: 'http://moonwalk.cc'
       }
     })
       .toString();
-    log.p("source:" + resp);
-    var content = parser(resp, "|14", "|");
-    content = Duktape.enc("base64", 14 + content);
-    var csrftoken = parser(resp, 'csrf-token" content="', '"');
-    log.p('VVVVVVVVVVVVVVVVVVVVVVVVVV')
-    var condition_detected = 0;
-    var session_url = data.url.match(/http:\/\/[^\/]+/)+'/sessions/new_session';
-    postdata = /(post\(.[\s\S]+?\))/g.exec(resp)[1];
-    log.p(postdata)
-    postdata = eval(postdata)
-    //postdata.url = data.url.match(/http:\/\/[^\/]+/)+postdata.url
-    log.p(postdata)
-    log.p('^^^^^^^^^^^^^^^^^^^^^^^^^')
-    var responseText = http.request(postdata.url, {
-      debug: 1,
-      headers: {
-				"Origin": data.url.match(/http:\/\/.*?\//),
-				"X-CSRF-Token": csrftoken,
-				"User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.59 Safari/537.36",
-				"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-				"Accept": "*/*",
-				//X-DevTools-Emulate-Network-Conditions-Client-Id:ff63bcac-722e-4bc8-9f92-e4a25257303b
-				"X-Requested-With": "XMLHttpRequest",
-				"X-Iframe-Option": "Direct",
-				"Referer": data.url,
-				"Accept-Encoding": "gzip, deflate",
-				"Accept-Language": "en-US,en;q=0.8",
-      },
-      postdata: postdata.data
-    }).toString();
+        //console.log("source:" + resp);
+        //content = Duktape.enc("base64", 14 + content);
+        var session_url = data.url.match(/http:\/\/[^\/]+/) + '/sessions/new_session';
+        var csrftoken = parser(resp, 'csrf-token" content="', '"');
+        condition_detected = false;
 
+        //session_params = resp.match(/(var session.*[\s\S]+?)\$.post/m);
+        session_params = (/(var window_surl.*[\s\S]+?)function/.exec(resp) || [])[1]
+        if (session_params != null) {
+            console.log('got session_params: \n' + (session_params));
+            // session_url = data.url.match(/http:\/\/[^\/]+/) + session_url;
+        } else {
+            console.log('Match attempt for session_params failed');
+        }
+        condition = (/.*?= '\S{32}';[\s\S]+var condition_detected [^;]+./.exec(resp) || [])[0];
+        if (condition != null) {
+            console.log('got condition: \n' + condition)
+        } else {
+            console.log('Condition Match attempt failed')
+        }
+
+        session_params_key = (/post\(window_surl, (.*?)\)/m.exec(resp) || [])[1]
+    //    console.log("session_params_key:" + session_params_key)
+        if (session_params_key != null) {
+            var re = new RegExp(session_params_key + ".*?'[^;]+")
+            //console.log('got session_params_key: \n' + (re.exec(resp) || [])[0]);
+            ses = (session_params.replace(session_params_key, 'post_param') + '\n' + (re.exec(resp) || [])[0].replace(session_params_key, 'post_param')).toString()
+            console.error(ses)
+            eval(ses)
+
+
+        } else {
+            console.log('Match attempt for session_params_key failed');
+        }
+        header = resp.match(/X-CSRF-Token[\s\S]+?,\n[^']+.(.+?)': '(.+?)'/);
+        if (header != null) {
+            //console.log('headers[0]: ' + header[0]);
+            header = ("headers['" + header[1] + "'] = '" + header[2] + "'")
+            //console.log('set header:' + header)
+        } else {
+            console.log('Match attempt failed for Headers');
+        }
+
+        headers = {
+            "Origin": "http://moonwalk.cc",
+            "X-CSRF-Token": csrftoken,
+            "User-Agent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36',
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "*/*",
+            "X-Requested-With": "XMLHttpRequest",
+            "Referer": "http://moonwalk.cc",
+            "Accept-Encoding": "gzip, deflate",
+            "Accept-Language": "en-US,en;q=0.8"
+        }
+        eval(header)
+      //  console.log(JSON.stringify(headers, null, 4))
+            //console.log(JSON.stringify(banners_script_clickunder, null, 4))
+            // banners_script_clickunder.mw_key = banners_script_clickunder.mw_key.replace('c', 'с')
+        post = {
+            debug: 1,
+            headers: headers,
+            postdata: post_param
+        }
+
+        var responseText = http.request(session_url, post).toString();
+   //     console.log(responseText)
         log.p(parser(resp, "insertVideo('", "'"));
         title = parser(resp, "insertVideo('", "'");
         page.metadata.title = title;
-        log.p(responseText)
+        //log.p(responseText)
         manifest_m3u8 = JSON.parse(responseText.match(/"manifest_m3u8":("[^"]+")/)[1]);
-        log.p(manifest_m3u8);
+        //log.p(manifest_m3u8);
         result_url = manifest_m3u8;
         videoparams.sources = [{
             url: manifest_m3u8
@@ -292,7 +332,7 @@ function videoPage(page, data) {
   page.loading = false;
 };
 
-function post(url,postdata){  
+function post(url,postdata){
 return {url:url,data:postdata}
 }
 
