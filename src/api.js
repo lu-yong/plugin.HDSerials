@@ -11,8 +11,6 @@ exports.call = function(params, page, callback, filter) {
     compression: true, // Will send 'Accept-Encoding: gzip' in request
     caching: true, // Enables Movian's built-in HTTP cache
   };
-  log.p(URL);
-  log.p(opts);
   http.request(URL, opts, function(err, result) {
     if (page) page.loading = false;
     if (err) {

@@ -24,7 +24,7 @@ function populatePageFromResults(page, result) {
           break;
         default:
           print("Unknown id in result: " + result.id);
-          print(JSON.stringify(item, null, 4));
+          //print(JSON.stringify(item, null, 4));
           return;
       }
       page.entries++
@@ -53,11 +53,10 @@ exports.list = function(params, page) {
   //page.type = "directory";
   //page.entries = 0;
   loader();
-  page.asyncPaginator = loader;
+  page.paginator = loader;
 };
 exports.moviepage = function(params, page, filter) {
-  page.loading = true;
-  page.type = "directory";
+   // console.log('moviepage');
   if (filter == "undefined") {
     var URL = "http://hdserials.galanov.net/backend/model.php";
     var opts = {
@@ -71,9 +70,15 @@ exports.moviepage = function(params, page, filter) {
       compression: true,
       caching: true
     };
-    http.request(URL, opts, function(err, result) {
+        result = http.request(URL, opts);
+        page.loading = false;
     result = JSON.parse(result);
-  log.p(result);
+    }
+
+    page.metadata.title = (result.data.info.title_en !== "" ? result.data.info.title_en : result.data.info.title_ru) + (' (' + result.data.info.year + ')' || '') + (filter !== "undefined" ? ' | ' + filter : '')
+    page.metadata.logo = result.data.info.image_file || LOGO;
+    page.loading = true;
+    page.type = 'directory';
   if (result.data.genres) {
     genres = "";
     for (i in result.data.genres) {
@@ -113,10 +118,17 @@ exports.moviepage = function(params, page, filter) {
   if (result.data.files) {
     tmp = "";
     var i = 0;
+    var f = 1;
     for (; i < result.data.files.length; i++) {
-      if (tmp !== result.data.files[i].season_translation && result.data.files[i].season_translation !== null) {
+        for (j in result.data.files) {
+            if (result.data.files[j].season_translation == filter || result.data.files[j].season_translation == undefined) {
+                f = 0;
+                break;
+            }}
+
+      if (f && tmp !== result.data.files[i].season_translation && result.data.files[i].season_translation !== null) {
         tmp = result.data.files[i].season_translation;
-        page.appendItem(PREFIX + ":filter-videos:" + result.data.info.id + ":" + "title" + ":" + result.data.files[i].season_translation_id, "directory", {
+        page.appendItem(PREFIX + ":filter-videos:" + result.data.info.id + ":" + "title" + ":" + result.data.files[i].season_translation, "directory", {
           title: result.data.files[i].season_translation
         });
       }
@@ -124,7 +136,7 @@ exports.moviepage = function(params, page, filter) {
   }
   if (result.data.files.length > 1) {
     for (j in result.data.files) {
-      if (result.data.files[j].season_translation_id == filter || result.data.files[j].season_translation_id == undefined) {
+      if (result.data.files[j].season_translation == filter || result.data.files[j].season_translation == undefined) {
         data = {
           title: result.data.info.title_en !== "" ? result.data.info.title_en : result.data.info.title_ru,
           year: result.data.info.year,
@@ -133,7 +145,7 @@ exports.moviepage = function(params, page, filter) {
           url: result.data.files[j].url,
           icon: result.data.info.image_file ? result.data.info.image_file : ""
         };
-        log.p(result.data.files[j].season);
+        //log.p(result.data.files[j].season);
         item = page.appendItem(PREFIX + ":" + result.id + ":" + escape(JSON.stringify(data)), "directory", {
           title: result.data.files[j].title + (result.data.files[j].season_translation ? " (" + result.data.files[j].season_translation + ")" : ""),
           description: (result.data.info.translation ? coloredStr("Перевод: ", orange) + result.data.info.translation + (result.data.files[j].season_translation ? ", " + result.data.files[j].season_translation : "") + "\n" : "") + (countries ? coloredStr("Страна: ", orange) + countries + "\n" : "") + (directors ? coloredStr("Режиссер: ", orange) + directors + " " : "") + (actors ? "\n" + coloredStr("В ролях актеры: ",
@@ -153,7 +165,7 @@ exports.moviepage = function(params, page, filter) {
     }
   } else {
     for (i in result.data.files) {
-      log.p(result.data.info.title_en);
+      //log.p(result.data.info.title_en);
       data = {
         title: result.data.info.title_en !== "" ? result.data.info.title_en : result.data.info.title_ru,
         year: result.data.info.year,
@@ -175,7 +187,5 @@ exports.moviepage = function(params, page, filter) {
     }
   }
 
-  });
-  }
   page.loading = false;
 };

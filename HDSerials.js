@@ -16,13 +16,13 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-//ver 1.1.1
+//ver 1.1.3
 var plugin = JSON.parse(Plugin.manifest);
 
 var PREFIX = plugin.id;
 var BASE_URL = 'http://hdserials.galanov.net';
 var LOGO = Plugin.path + "logo.png";
-var UA = 'Android;HD Serials v.1.14.40;ru-RU;google Nexus 4;SDK 10;v.2.3.3(REL)';
+var UA = 'Android;HD Serials v.1.14.45;ru-RU;google Nexus 4;SDK 10;v.2.3.3(REL)';
 var page = require('showtime/page');
 var service = require("showtime/service");
 var settings = require('showtime/settings');
@@ -71,11 +71,11 @@ io.httpInspectorCreate('http.*streamblast.cc.*', function(ctrl) {
 service.create(plugin.title, PREFIX + ":start", "video", true, LOGO);
 
 
-settings.globalSettings("settings", plugin.title, LOGO, plugin.synopsis);
+settings.globalSettings(plugin.id, plugin.title, LOGO, plugin.synopsis);
 settings.createInfo("info", LOGO, "Plugin developed by " + plugin.author + ". \n");
 settings.createDivider("Settings:");
-settings.createBool("tosaccepted", "Accepted TOS (available in opening the plugin)", false, function(v) {
-  service.tosaccepted = v;
+settings.createBool("tosaccepted", "Accepted TOS (available in opening the plugin):", false, function (v) {
+    service.tosaccepted = v;
 });
 settings.createBool("debug", "Debug", false, function(v) {
   service.debug = v;
@@ -111,12 +111,14 @@ function coloredStr(str, color) {
   //        return '<font color="' + color + '">' + str + '</font>';
 }
 new page.Route(PREFIX + ":news:(.*)", function(page, id) {
+    page.metadata.title = 'Сериалы HD новинки';
   browse.list({
     'id': id,
   }, page);
 });
 
 new page.Route(PREFIX + ":common-categories:(.*):(.*)", function(page, id, title) {
+    page.metadata.title = unescape(title);
   browse.list({
     'id': 'sub-categories',
     'parent': id,
@@ -125,6 +127,7 @@ new page.Route(PREFIX + ":common-categories:(.*):(.*)", function(page, id, title
 })
 
 new page.Route(PREFIX + ":sub-categories:(.*):(.*)", function(page, category_id, title) {
+    page.metadata.title = unescape(title);
   browse.list({
     'id': 'filter-videos',
     'category': category_id,
@@ -135,6 +138,7 @@ new page.Route(PREFIX + ":sub-categories:(.*):(.*)", function(page, category_id,
 })
 
 new page.Route(PREFIX + ":filter-videos:(.*):(.*):(.*)", function(page, id, title, filter) {
+    page.metadata.title = unescape(title);
   browse.moviepage({
     'id': 'video',
     'video': id,
@@ -210,55 +214,45 @@ function videoPage(page, data) {
     episode: data.episode ? data.episode : '',
     sources: [{
         url: []
-      }
-    ],
+        }],
     subtitles: []
   };
 
   if (data.url.match(/http:\/\/.+?iframe/)) {
-    log.p('Open url:' + data.url.match(/http:\/\/.+?iframe/));
-    log.p("Open url:" + data.url);
+    //log.p('Open url:' + data.url.match(/http:\/\/.+?iframe/));
+    //log.p("Open url:" + data.url);
     resp = http.request(data.url, {
       method: "GET",
       headers: {
                 Referer: 'http://moonwalk.cc'
-      }
-    })
-      .toString();
+            }
+        }).toString();
+
         //console.log("source:" + resp);
         //content = Duktape.enc("base64", 14 + content);
-        var session_url = data.url.match(/http:\/\/[^\/]+/) + '/sessions/new_session';
         var csrftoken = parser(resp, 'csrf-token" content="', '"');
         condition_detected = false;
+        session_params = (/var [a-z0-9]{32}[\s\S]+?\}\;/.exec(resp) || [])[0] //.replace(/\' \+ \'/g, '')//.replace(/window/g,'');
+        //if (session_params != null) {
+          //  console.log('got session_params: \n' + (session_params));
+       // } else {
+         //   console.log('Match attempt for session_params failed');
+        //}
 
-        //session_params = resp.match(/(var session.*[\s\S]+?)\$.post/m);
-        session_params = (/(var window_surl.*[\s\S]+?)function/.exec(resp) || [])[1]
-        if (session_params != null) {
-            console.log('got session_params: \n' + (session_params));
-            // session_url = data.url.match(/http:\/\/[^\/]+/) + session_url;
-        } else {
-            console.log('Match attempt for session_params failed');
+        newsesion_parm = (/setTimeout[^[]+(window.*;)/g.exec(resp) || [])[1] //.replace(/\' \+ \'/g, '')//.replace(/window/g,'');
+        if (newsesion_parm != null) {
+            //console.log('got newsesion_parm: \n' + newsesion_parm);
+            session_params_key = (/\['(.*?)'\]\[/.exec(newsesion_parm)[1]).replace(/\' \+ \'/g, '')
+            //console.log(session_params_key)
+
         }
-        condition = (/.*?= '\S{32}';[\s\S]+var condition_detected [^;]+./.exec(resp) || [])[0];
-        if (condition != null) {
-            console.log('got condition: \n' + condition)
-        } else {
-            console.log('Condition Match attempt failed')
-        }
 
-        session_params_key = (/post\(window_surl, (.*?)\)/m.exec(resp) || [])[1]
-    //    console.log("session_params_key:" + session_params_key)
-        if (session_params_key != null) {
-            var re = new RegExp(session_params_key + ".*?'[^;]+")
-            //console.log('got session_params_key: \n' + (re.exec(resp) || [])[0]);
-            ses = (session_params.replace(session_params_key, 'post_param') + '\n' + (re.exec(resp) || [])[0].replace(session_params_key, 'post_param')).toString()
-            console.error(ses)
-            eval(ses)
+        ses = session_params + '\n' + newsesion_parm;
+        var re = new RegExp(session_params_key, 'g');
+        ses = ses.replace(/\'\]\[\'/g, '.').replace(/\[\'|' \+ '/g, '').replace(/'\]/g, '').replace(/window/g, '').replace(re, 'post_param');
+        ses = ses.replace(/\w{32}/, 'session_url');
+        eval(ses);
 
-
-        } else {
-            console.log('Match attempt for session_params_key failed');
-        }
         header = resp.match(/X-CSRF-Token[\s\S]+?,\n[^']+.(.+?)': '(.+?)'/);
         if (header != null) {
             //console.log('headers[0]: ' + header[0]);
@@ -284,15 +278,13 @@ function videoPage(page, data) {
             //console.log(JSON.stringify(banners_script_clickunder, null, 4))
             // banners_script_clickunder.mw_key = banners_script_clickunder.mw_key.replace('c', 'с')
         post = {
-            debug: 1,
+            debug: 0,
             headers: headers,
             postdata: post_param
         }
 
-        var responseText = http.request(session_url, post).toString();
-   //     console.log(responseText)
-        log.p(parser(resp, "insertVideo('", "'"));
-        title = parser(resp, "insertVideo('", "'");
+        var responseText = http.request(data.url.match(/http:\/\/[^\/]+/) + session_url, post).toString();
+        title = (/insertVideo\('(.*?)',/.exec(resp) || [])[1].split('/').pop();
         page.metadata.title = title;
         //log.p(responseText)
         manifest_m3u8 = JSON.parse(responseText.match(/"manifest_m3u8":("[^"]+")/)[1]);
@@ -308,7 +300,7 @@ function videoPage(page, data) {
           icon: data.icon
         });
         var video_urls = http.request(manifest_m3u8).toString();
-        log.p(video_urls);
+        //log.p(video_urls);
         var myRe = /RESOLUTION=([^,]+)[\s\S]+?(http.*)/g;
         var myArray, i = 0;
         while ((myArray = myRe.exec(video_urls)) !== null) {
