@@ -16,13 +16,13 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-//ver 1.1.3
+//ver 1.2.4
 var plugin = JSON.parse(Plugin.manifest);
 
 var PREFIX = plugin.id;
 var BASE_URL = 'http://hdserials.galanov.net';
 var LOGO = Plugin.path + "logo.png";
-var UA = 'Android;HD Serials v.1.14.45;ru-RU;google Nexus 4;SDK 10;v.2.3.3(REL)';
+var UA = 'Android;HD Serials v.1.14.46;ru-RU;google Nexus 4;SDK 10;v.2.3.3(REL)';
 var page = require('showtime/page');
 var service = require("showtime/service");
 var settings = require('showtime/settings');
@@ -57,9 +57,14 @@ io.httpInspectorCreate('http.*galanov.net/.*', function(ctrl) {
   ctrl.setHeader('User-Agent', UA);
   return 0;
 });
-io.httpInspectorCreate('https://.*moonwalk.cc/.*', function(ctrl) {
-  ctrl.setHeader('User-Agent', UA);
-  return 0;
+io.httpInspectorCreate('http.*moonwalk.cc/.*', function(ctrl) {
+    ctrl.setHeader('User-Agent', UA);
+    return 0;
+});
+
+io.httpInspectorCreate("http.*video/[a-f0-9]{16}/.*", function(ctrl) {
+    ctrl.setHeader('User-Agent', UA);
+    return 0;
 });
 
 io.httpInspectorCreate('http.*streamblast.cc.*', function(ctrl) {
@@ -228,65 +233,37 @@ function videoPage(page, data) {
             }
         }).toString();
 
-        //console.log("source:" + resp);
-        //content = Duktape.enc("base64", 14 + content);
-        var csrftoken = parser(resp, 'csrf-token" content="', '"');
-        condition_detected = false;
-        session_params = (/var [a-z0-9]{32}[\s\S]+?\}\;/.exec(resp) || [])[0] //.replace(/\' \+ \'/g, '')//.replace(/window/g,'');
-        //if (session_params != null) {
-          //  console.log('got session_params: \n' + (session_params));
-       // } else {
-         //   console.log('Match attempt for session_params failed');
-        //}
-
-        newsesion_parm = (/setTimeout[^[]+(window.*;)/g.exec(resp) || [])[1] //.replace(/\' \+ \'/g, '')//.replace(/window/g,'');
-        if (newsesion_parm != null) {
-            //console.log('got newsesion_parm: \n' + newsesion_parm);
-            session_params_key = (/\['(.*?)'\]\[/.exec(newsesion_parm)[1]).replace(/\' \+ \'/g, '')
-            //console.log(session_params_key)
-
-        }
-
-        ses = session_params + '\n' + newsesion_parm;
-        var re = new RegExp(session_params_key, 'g');
-        ses = ses.replace(/\'\]\[\'/g, '.').replace(/\[\'|' \+ '/g, '').replace(/'\]/g, '').replace(/window/g, '').replace(re, 'post_param');
-        ses = ses.replace(/\w{32}/, 'session_url');
-        eval(ses);
-
-        header = resp.match(/X-CSRF-Token[\s\S]+?,\n[^']+.(.+?)': '(.+?)'/);
-        if (header != null) {
-            //console.log('headers[0]: ' + header[0]);
-            header = ("headers['" + header[1] + "'] = '" + header[2] + "'")
-            //console.log('set header:' + header)
-        } else {
-            console.log('Match attempt failed for Headers');
-        }
-
+        VideoBalancer = /new VideoBalancer\(([^\;]+\})/.exec(resp)[1];
+     //   console.log(eval('options = ' + VideoBalancer))
+        eval('options = ' + VideoBalancer);
+        url = (options.proto + options.host + /script src="([^"]+)/.exec(resp)[1])
+        resp = http.request(url, { debug: service.debug })
+       // console.log(eval('post_data =' + (/(\{mw_key[^\}]+.)/.exec(resp)[1]).replace(/this./g, '')));
+        eval('post_data =' + (/(\{mw_key[^\}]+.)/.exec(resp)[1]).replace(/this./g, ''));
+        header = /(headers:[^}]+)/.exec(resp)[1].replace(':{', '[').replace(':', ']=');
+      //  console.log(eval('post_url=' + /url:("[^,]+)/.exec(resp)[1].replace('this.', '')));
+        eval('post_url=' + /url:("[^,]+)/.exec(resp)[1].replace('this.', ''));
         headers = {
             "Origin": "http://moonwalk.cc",
-            "X-CSRF-Token": csrftoken,
-            "User-Agent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36',
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Accept": "*/*",
-            "X-Requested-With": "XMLHttpRequest",
-            "Referer": "http://moonwalk.cc",
             "Accept-Encoding": "gzip, deflate",
-            "Accept-Language": "en-US,en;q=0.8"
+            "Accept-Language": "en-US,en;q=0.8,ru;q=0.6",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36",
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "Referer": data.url,
+            "X-Requested-With": "XMLHttpRequest",
         }
         eval(header)
-      //  console.log(JSON.stringify(headers, null, 4))
-            //console.log(JSON.stringify(banners_script_clickunder, null, 4))
-            // banners_script_clickunder.mw_key = banners_script_clickunder.mw_key.replace('c', 'с')
         post = {
             debug: 0,
             headers: headers,
-            postdata: post_param
-        }
-
-        var responseText = http.request(data.url.match(/http:\/\/[^\/]+/) + session_url, post).toString();
-        title = (/insertVideo\('(.*?)',/.exec(resp) || [])[1].split('/').pop();
-        page.metadata.title = title;
-        //log.p(responseText)
+            postdata: post_data
+        };
+      //  log.d(post)
+      //  log.d(options.proto + options.host + post_url)
+        var responseText = http.request(options.proto + options.host + post_url, post).toString();
+       // log.d('manifesty')
+       // log.d(JSON.parse(responseText));
         manifest_m3u8 = JSON.parse(responseText.match(/"manifest_m3u8":("[^"]+")/)[1]);
         //log.p(manifest_m3u8);
         result_url = manifest_m3u8;
@@ -299,33 +276,63 @@ function videoPage(page, data) {
           title: "Auto",
           icon: data.icon
         });
-        var video_urls = http.request(manifest_m3u8).toString();
-        //log.p(video_urls);
-        var myRe = /RESOLUTION=([^,]+)[\s\S]+?(http.*)/g;
-        var myArray, i = 0;
-        while ((myArray = myRe.exec(video_urls)) !== null) {
-          videoparams.sources = [{
-              url: myArray[2]
+        //m3u8 HLS
+        try {
+            if (null != manifest_m3u8) {
+                var video_urls = http.request(manifest_m3u8, { header: { "User-Agent": UA } }).toString();
+                var myRe = /RESOLUTION=([^,]+)[\s\S]+?(http.*)/g;
+                var myArray, i = 0;
+                while ((myArray = myRe.exec(video_urls)) !== null) {
+                    videoparams.sources = [{
+                        url: myArray[2]
+                    }];
+                    video = "videoparams:" + JSON.stringify(videoparams);
+                    page.appendItem(video, "video", {
+                        title: myArray[1],
+                        icon: data.icon
+                    });
+                    i++;
+                };
             }
-          ];
-          video = "videoparams:" + JSON.stringify(videoparams);
-          page.appendItem(video, "video", {
-            title: myArray[1],
-            icon: data.icon
-          });
-          i++;
+        } catch (error) {
+            log.e('oshibka pri vyvode variantov m3u8');
+            log.e(error.stack);
         }
-  }
+        //MP4
+        try {
+            if (null != JSON.parse(responseText).mans.manifest_mp4) {
+                var video_urls = http.request(JSON.parse(responseText).mans.manifest_mp4, { header: { "User-Agent": UA } }).toString()
+            //    log.p(video_urls = (JSON.parse(video_urls)));
+                video_urls = JSON.parse(video_urls);
+                for (key in video_urls) {
+                    videoparams.sources = [{
+                        url: video_urls[key]
+                    }];
+                    video = "videoparams:" + JSON.stringify(videoparams);
+                    page.appendItem(video, "video", {
+                        title: key + "-MP4",
+                        icon: data.icon
+                    });
+                }
+            }
+        } catch (error) {
+            log.e('oshibks v MP4');
+            log.e(error.stack);
+        }
 
 
+    }
   page.type = "directory";
   page.contents = "contents";
   page.metadata.logo = data.icon;
   page.loading = false;
 };
 
-function post(url,postdata){
-return {url:url,data:postdata}
+function post(url, postdata) {
+    return {
+        url: url,
+        data: postdata
+    }
 }
 
 function parser(a, c, e) {
