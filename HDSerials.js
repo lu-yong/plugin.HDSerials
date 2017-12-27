@@ -16,7 +16,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-//ver 1.2.4
+//ver 1.2.7
 var plugin = JSON.parse(Plugin.manifest);
 
 var PREFIX = plugin.id;
@@ -233,16 +233,22 @@ function videoPage(page, data) {
             }
         }).toString();
 
+        var e ={};
+        window = (/window[^;]+/.exec(resp)[0].replace('window','e'))
+        //console.log(window)
+        eval(window);
         VideoBalancer = /new VideoBalancer\(([^\;]+\})/.exec(resp)[1];
-     //   console.log(eval('options = ' + VideoBalancer))
+        //console.log(VideoBalancer);
         eval('options = ' + VideoBalancer);
-        url = (options.proto + options.host + /script src="([^"]+)/.exec(resp)[1])
-        resp = http.request(url, { debug: service.debug })
-       // console.log(eval('post_data =' + (/(\{mw_key[^\}]+.)/.exec(resp)[1]).replace(/this./g, '')));
-        eval('post_data =' + (/(\{mw_key[^\}]+.)/.exec(resp)[1]).replace(/this./g, ''));
-        header = /(headers:[^}]+)/.exec(resp)[1].replace(':{', '[').replace(':', ']=');
-      //  console.log(eval('post_url=' + /url:("[^,]+)/.exec(resp)[1].replace('this.', '')));
-        eval('post_url=' + /url:("[^,]+)/.exec(resp)[1].replace('this.', ''));
+        url = (options.proto + options.host + /script src="([^"]+)/.exec(resp)[1]);
+        resp = http.request(url) //, { debug: service.debug });
+        post_data = (/getVideoManifests[\s\S]+?(var[\s\S]+?mw_key[^\]]+.)/g.exec(resp)[1].replace(/this./g, ''));
+        //console.log(post_data)
+        log.d(eval(post_data + ';\n post_data=n'));
+        //header = /(headers:[^}]+)/.exec(resp)[1].replace(':{', '[').replace(':', ']=');
+        log.d(eval('post_url=' + /url:("[^,]+)/.exec(resp)[1].replace(/this./g, '')));
+
+
         headers = {
             "Origin": "http://moonwalk.cc",
             "Accept-Encoding": "gzip, deflate",
@@ -253,7 +259,7 @@ function videoPage(page, data) {
             "Referer": data.url,
             "X-Requested-With": "XMLHttpRequest",
         }
-        eval(header)
+        //eval(header)
         post = {
             debug: 0,
             headers: headers,
