@@ -53,7 +53,7 @@ exports.list = function(params, page) {
   //page.type = "directory";
   //page.entries = 0;
   loader();
-  page.asyncPaginator = loader;
+  page.paginator = loader;
 };
 exports.moviepage = function(params, page, filter) {
    // console.log('moviepage');

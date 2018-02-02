@@ -151,8 +151,7 @@ new page.Route(PREFIX + ":filter-videos:(.*):(.*):(.*)", function(page, id, titl
 })
 
 new page.Route(PREFIX + ":search:(.*)", function(page, query) {
-  page.metadata.icon = LOGO;
-  page.metadata.title = 'Search results for: ' + query;
+  print('Search results for: ' + query);
   browse.list({
     'id': 'filter-videos',
     'category': 0,
@@ -180,7 +179,12 @@ new page.Route(PREFIX + ":start", function(page) {
   page.metadata.title = "HDSerials";
   page.metadata.icon = LOGO;
 
-
+    if(typeof(showtime.apiVersion) != "undefined" && showtime.apiVersion == "1.0.0")
+    {
+        page.appendItem(PREFIX + ":search:", 'search', {
+            title: 'Search'
+        });
+    }
   page.appendItem(PREFIX + ':news:news', 'directory', {
     title: 'Сериалы HD новинки',
   });
