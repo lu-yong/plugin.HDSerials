@@ -23,9 +23,17 @@ function populatePageFromResults(page, result) {
           });
           break;
         default:
-          print("Unknown id in result: " + result.id);
-          //print(JSON.stringify(item, null, 4));
-          return;
+            var videoParams = {
+            sources: [{
+                url: "null",
+              }],
+            no_subtitle_scan: true,
+            subtitles: []
+            }
+            page.appendItem("videoparams:" + JSON.stringify(videoParams), "video", {title: "No Content",});
+            print("Unknown id in result: " + result.id);
+            //print(JSON.stringify(item, null, 4));
+           return;
       }
       page.entries++
     }
@@ -40,6 +48,14 @@ exports.list = function(params, page) {
     api.call(params, page, function(result) {
       if (result.id && result.data.length === 0) {
         page.type = "empty";
+        var videoParams = {
+        sources: [{
+            url: "null",
+          }],
+        no_subtitle_scan: true,
+        subtitles: []
+        }
+        page.appendItem("videoparams:" + JSON.stringify(videoParams), "video", {title: "No Content",});
         return;
       }
       populatePageFromResults(page, result);
