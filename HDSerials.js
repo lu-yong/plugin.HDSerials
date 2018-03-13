@@ -18,7 +18,6 @@
  */
 //ver 1.2.7
 var plugin = JSON.parse(Plugin.manifest);
-
 var PREFIX = plugin.id;
 var BASE_URL = 'http://hdserials.galanov.net';
 var LOGO = Plugin.path + "logo.png";
@@ -31,11 +30,9 @@ var prop = require('showtime/prop');
 var log = require('./src/log');
 var browse = require('./src/browse');
 var api = require('./src/api');
-
 var http = require('showtime/http');
 var html = require("showtime/html");
 var result
-
 var tos = "The developer has no affiliation with the sites what so ever.\n";
 tos += "Nor does he receive money or any other kind of benefits for them.\n\n";
 tos += "The software is intended solely for educational and testing purposes,\n";
@@ -51,133 +48,121 @@ tos += "plugin operation lead to or may lead to infringement or violation of the
 tos += "rights of the respective content copyright holders.\n\n";
 tos += "plugin is not licensed, approved or endorsed by any online resource\n ";
 tos += "proprietary. Do you accept this terms?";
-
-
-io.httpInspectorCreate('http.*galanov.net/.*', function(ctrl) {
-  ctrl.setHeader('User-Agent', UA);
-  return 0;
+io.httpInspectorCreate('http.*galanov.net/.*', function (ctrl) {
+    ctrl.setHeader('User-Agent', UA);
+    return 0;
 });
-io.httpInspectorCreate('http.*moonwalk.cc/.*', function(ctrl) {
+io.httpInspectorCreate('http.*moonwalk.cc/.*', function (ctrl) {
     ctrl.setHeader('User-Agent', UA);
     return 0;
 });
 
-io.httpInspectorCreate("http.*video/[a-f0-9]{16}/.*", function(ctrl) {
+io.httpInspectorCreate("http.*video/[a-f0-9]{16}/.*", function (ctrl) {
     ctrl.setHeader('User-Agent', UA);
     return 0;
 });
 
-io.httpInspectorCreate('http.*streamblast.cc.*', function(ctrl) {
+io.httpInspectorCreate('http.*streamblast.cc.*', function (ctrl) {
     ctrl.setHeader('User-Agent', UA);
     ctrl.setHeader("Referer", "http://streamblast.cc");
     return 0;
 });
 // Create the service (ie, icon on home screen)
 service.create(plugin.title, PREFIX + ":start", "video", true, LOGO);
-
-
 settings.globalSettings(plugin.id, plugin.title, LOGO, plugin.synopsis);
 settings.createInfo("info", LOGO, "Plugin developed by " + plugin.author + ". \n");
 settings.createDivider("Settings:");
 settings.createBool("tosaccepted", "Accepted TOS (available in opening the plugin):", false, function (v) {
     service.tosaccepted = v;
 });
-settings.createBool("debug", "Debug", false, function(v) {
-  service.debug = v;
+settings.createBool("debug", "Debug", false, function (v) {
+    service.debug = v;
 });
-settings.createInt("requestQuantity", "Количество запрашиваемых данных в одном запросе", 40, 20, 100, 10, '', function(v) {
-  service.requestQuantity = v;
+settings.createInt("requestQuantity", "Количество запрашиваемых данных в одном запросе", 40, 20, 100, 10, '', function (v) {
+    service.requestQuantity = v;
 });
-settings.createBool("Show_META", "Show more info from thetvdb", true, function(v) {
-  service.tvdb = v;
+settings.createBool("Show_META", "Show more info from thetvdb", true, function (v) {
+    service.tvdb = v;
 });
 
 function blueStr(str) {
-  //return '<font color="6699CC"> (' + str + ')</font>';
-  return ' (' + str + ')'
+    //return '<font color="6699CC"> (' + str + ')</font>';
+    return ' (' + str + ')'
 }
-
 
 function oprint(o) {
-  // print an object, this should really be a Movian builtin
-  print(JSON.stringify(o, null, 4));
+    // print an object, this should really be a Movian builtin
+    print(JSON.stringify(o, null, 4));
 }
-
 var blue = "6699CC",
-  orange = "FFA500";
+    orange = "FFA500";
 
 function colorStr(str, color) {
-  return ' (' + str + ')';
-  //return '<font color="' + color + '">(' + str + ')</font>';
+    return ' (' + str + ')';
+    //return '<font color="' + color + '">(' + str + ')</font>';
 }
 
 function coloredStr(str, color) {
-  return str;
-  //        return '<font color="' + color + '">' + str + '</font>';
+    return str;
+    //        return '<font color="' + color + '">' + str + '</font>';
 }
-new page.Route(PREFIX + ":news:(.*)", function(page, id) {
+new page.Route(PREFIX + ":news:(.*)", function (page, id) {
     page.metadata.title = 'Сериалы HD новинки';
-  browse.list({
-    'id': id,
-  }, page);
+    browse.list({
+        'id': id,
+    }, page);
 });
-
-new page.Route(PREFIX + ":common-categories:(.*):(.*)", function(page, id, title) {
+new page.Route(PREFIX + ":common-categories:(.*):(.*)", function (page, id, title) {
     page.metadata.title = unescape(title);
-  browse.list({
-    'id': 'sub-categories',
-    'parent': id,
-    'start': 0
-  }, page);
+    browse.list({
+        'id': 'sub-categories',
+        'parent': id,
+        'start': 0
+    }, page);
 })
-
-new page.Route(PREFIX + ":sub-categories:(.*):(.*)", function(page, category_id, title) {
+new page.Route(PREFIX + ":sub-categories:(.*):(.*)", function (page, category_id, title) {
     page.metadata.title = unescape(title);
-  browse.list({
-    'id': 'filter-videos',
-    'category': category_id,
-    'fresh': 1,
-    'start': 0,
-    'limit': service.requestQuantity
-  }, page);
+    browse.list({
+        'id': 'filter-videos',
+        'category': category_id,
+        'fresh': 1,
+        'start': 0,
+        'limit': service.requestQuantity
+    }, page);
 })
-
-new page.Route(PREFIX + ":filter-videos:(.*):(.*):(.*)", function(page, id, title, filter) {
+new page.Route(PREFIX + ":filter-videos:(.*):(.*):(.*)", function (page, id, title, filter) {
     page.metadata.title = unescape(title);
-  browse.moviepage({
-    'id': 'video',
-    'video': id,
-  }, page, filter);
+    browse.moviepage({
+        'id': 'video',
+        'video': id,
+    }, page, filter);
 })
-
-new page.Route(PREFIX + ":search:(.*)", function(page, query) {
+new page.Route(PREFIX + ":search:(.*)", function (page, query) {
   print('Search results for: ' + query);
-  browse.list({
-    'id': 'filter-videos',
-    'category': 0,
-    'search': query,
-    'start': 0,
-    'limit': service.requestQuantity
-  }, page);
+    browse.list({
+        'id': 'filter-videos',
+        'category': 0,
+        'search': query,
+        'start': 0,
+        'limit': service.requestQuantity
+    }, page);
 });
-
-page.Searcher(PREFIX + " - Videos", LOGO, function(page, query) {
-  page.metadata.icon = LOGO;
-  // page.metadata.title = 'Search results for: ' + query;
-  browse.list({
-    'id': 'filter-videos',
-    'category': 0,
-    'search': query,
-    'start': 0,
-    'limit': service.requestQuantity
-  }, page);
+page.Searcher(PREFIX + " - Videos", LOGO, function (page, query) {
+    page.metadata.icon = LOGO;
+    // page.metadata.title = 'Search results for: ' + query;
+    browse.list({
+        'id': 'filter-videos',
+        'category': 0,
+        'search': query,
+        'start': 0,
+        'limit': service.requestQuantity
+    }, page);
 });
-
 // Landing page
-new page.Route(PREFIX + ":start", function(page) {
-  page.type = 'directory';
-  page.metadata.title = "HDSerials";
-  page.metadata.icon = LOGO;
+new page.Route(PREFIX + ":start", function (page) {
+    page.type = 'directory';
+    page.metadata.title = "HDSerials";
+    page.metadata.icon = LOGO;
 
     if(typeof(showtime.apiVersion) != "undefined" && showtime.apiVersion == "1.0.0")
     {
@@ -185,54 +170,47 @@ new page.Route(PREFIX + ":start", function(page) {
             title: 'Search'
         });
     }
-  page.appendItem(PREFIX + ':news:news', 'directory', {
-    title: 'Сериалы HD новинки',
-  });
-  page.appendItem(PREFIX + ':sub-categories:0:Последние обновлений на сайте', 'directory', {
-    title: 'Последние обновлений на сайте',
-  });
-
-
-  api.call({
-    'id': 'common-categories',
-  }, null, function(result) {
-    for (var x in result.data) {
-      var item = result.data[x];
-      page.appendItem(PREFIX + ':' + result.id + ':' + item.id + ':' + escape(item.title_ru), 'directory', {
-        title: item.title_ru + ' (' + item.video_count + ')' //+'<font color="6699CC">blue</font>',
-      });
-    }
-  });
+    page.appendItem(PREFIX + ':news:news', 'directory', {
+        title: 'Сериалы HD новинки',
+    });
+    page.appendItem(PREFIX + ':sub-categories:0:Последние обновлений на сайте', 'directory', {
+        title: 'Последние обновлений на сайте',
+    });
+    api.call({
+        'id': 'common-categories',
+    }, null, function (result) {
+        for (var x in result.data) {
+            var item = result.data[x];
+            page.appendItem(PREFIX + ':' + result.id + ':' + item.id + ':' + escape(item.title_ru), 'directory', {
+                title: item.title_ru + ' (' + item.video_count + ')' //+'<font color="6699CC">blue</font>',
+            });
+        }
+    });
 });
 
-
-
 function videoPage(page, data) {
-
-  page.loading = true;
-  var canonicalUrl = PREFIX + ":video:" + data;
-  data = JSON.parse(unescape(data));
-
-  var videoparams = {
-    canonicalUrl: canonicalUrl,
-    no_fs_scan: true,
-    icon: data.icon,
-    title: unescape(data.title),
-    year: data.year ? data.year : '',
-    season: data.season ? data.season : '',
-    episode: data.episode ? data.episode : '',
-    sources: [{
-        url: []
+    page.loading = true;
+    var canonicalUrl = PREFIX + ":video:" + data;
+    data = JSON.parse(unescape(data));
+    var videoparams = {
+        canonicalUrl: canonicalUrl,
+        no_fs_scan: true,
+        icon: data.icon,
+        title: unescape(data.title),
+        year: data.year ? data.year : '',
+        season: data.season ? data.season : '',
+        episode: data.episode ? data.episode : '',
+        sources: [{
+            url: []
         }],
-    subtitles: []
-  };
-
-  if (data.url.match(/http:\/\/.+?iframe/)) {
-    //log.p('Open url:' + data.url.match(/http:\/\/.+?iframe/));
-    //log.p("Open url:" + data.url);
-    resp = http.request(data.url, {
-      method: "GET",
-      headers: {
+        subtitles: []
+    };
+    if (data.url.match(/http:\/\/.+?iframe/)) {
+        log.p('Open url:' + data.url.match(/http:\/\/.+?iframe/));
+        log.p("Open url:" + data.url);
+        resp = http.request(data.url, {
+            method: "GET",
+            headers: {
                 Referer: 'http://moonwalk.cc'
             }
         }).toString();
@@ -265,17 +243,16 @@ function videoPage(page, data) {
         }
         //eval(header)
         post = {
-            debug: 0,
+            debug: service.debug,
             headers: headers,
             postdata: post_data
         };
-      //  log.d(post)
-      //  log.d(options.proto + options.host + post_url)
+        log.d(post)
+        log.d(options.proto + options.host + post_url)
         var responseText = http.request(options.proto + options.host + post_url, post).toString();
-       // log.d('manifesty')
-       // log.d(JSON.parse(responseText));
+        log.d('manifesty')
+        log.d(JSON.parse(responseText));
         manifest_m3u8 = JSON.parse(responseText.match(/"manifest_m3u8":("[^"]+")/)[1]);
-        //log.p(manifest_m3u8);
         result_url = manifest_m3u8;
         videoparams.sources = [{
             url: manifest_m3u8
@@ -283,13 +260,18 @@ function videoPage(page, data) {
         ];
         video = "videoparams:" + JSON.stringify(videoparams);
         page.appendItem(video, "video", {
-          title: "Auto",
-          icon: data.icon
+            title: "[Auto]" + " | " + data.title,
+            icon: data.icon
         });
+
         //m3u8 HLS
         try {
             if (null != manifest_m3u8) {
-                var video_urls = http.request(manifest_m3u8, { header: { "User-Agent": UA } }).toString();
+                var video_urls = http.request(manifest_m3u8, {
+                    header: {
+                        "User-Agent": UA
+                    }
+                }).toString();
                 var myRe = /RESOLUTION=([^,]+)[\s\S]+?(http.*)/g;
                 var myArray, i = 0;
                 while ((myArray = myRe.exec(video_urls)) !== null) {
@@ -298,7 +280,7 @@ function videoPage(page, data) {
                     }];
                     video = "videoparams:" + JSON.stringify(videoparams);
                     page.appendItem(video, "video", {
-                        title: myArray[1],
+                        title: "[" + myArray[1] + "]" + " | " + data.title,
                         icon: data.icon
                     });
                     i++;
@@ -311,16 +293,19 @@ function videoPage(page, data) {
         //MP4
         try {
             if (null != JSON.parse(responseText).mans.manifest_mp4) {
-                var video_urls = http.request(JSON.parse(responseText).mans.manifest_mp4, { header: { "User-Agent": UA } }).toString()
-            //    log.p(video_urls = (JSON.parse(video_urls)));
-                video_urls = JSON.parse(video_urls);
+                var video_urls = http.request(JSON.parse(responseText).mans.manifest_mp4, {
+                    header: {
+                        "User-Agent": UA
+                    }
+                }).toString()
+                log.p(video_urls = (JSON.parse(video_urls)));
                 for (key in video_urls) {
                     videoparams.sources = [{
                         url: video_urls[key]
                     }];
                     video = "videoparams:" + JSON.stringify(videoparams);
                     page.appendItem(video, "video", {
-                        title: key + "-MP4",
+                        title: "[" + key + "-MP4]" + " | " + data.title,
                         icon: data.icon
                     });
                 }
@@ -330,12 +315,22 @@ function videoPage(page, data) {
             log.e(error.stack);
         }
 
+        // null != this.options.subtitles && (r = [], null != this.options.subtitles.master_vtt && r.push({
+        //     on_start: !0,
+        //     srclang: "ru",
+        //     label: "Russian",
+        //     src: this.options.subtitles.master_vtt
+        // }), null != this.options.subtitles.slave_vtt && r.push({
+        //     srclang: "en",
+        //     label: "English",
+        //     src: this.options.subtitles.slave_vtt
+        // }));
 
     }
-  page.type = "directory";
-  page.contents = "contents";
-  page.metadata.logo = data.icon;
-  page.loading = false;
+    page.type = "directory";
+    page.contents = "contents";
+    page.metadata.logo = data.icon;
+    page.loading = false;
 };
 
 function post(url, postdata) {
@@ -346,15 +341,14 @@ function post(url, postdata) {
 }
 
 function parser(a, c, e) {
-  var d = "",
-    b = a.indexOf(c);
-  0 < b && (a = a.substr(b + c.length), b = a.indexOf(e), 0 < b && (d = a.substr(0, b)));
-  return d;
+    var d = "",
+        b = a.indexOf(c);
+    0 < b && (a = a.substr(b + c.length), b = a.indexOf(e), 0 < b && (d = a.substr(0, b)));
+    return d;
 }
 
 function trim(s) {
-  if (s) return s.replace(/(\r\n|\n|\r)/gm, "").replace(/(^\s*)|(\s*$)/gi, "").replace(/[ ]{2,}/gi, " ").replace(/\t/g, '');
-  return '';
+    if (s) return s.replace(/(\r\n|\n|\r)/gm, "").replace(/(^\s*)|(\s*$)/gi, "").replace(/[ ]{2,}/gi, " ").replace(/\t/g, '');
+    return '';
 }
-
 new page.Route(PREFIX + ":video:(.*)", videoPage);
