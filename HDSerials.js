@@ -16,12 +16,13 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-//ver 1.2.7
+//ver 1.2.8
 var plugin = JSON.parse(Plugin.manifest);
 var PREFIX = plugin.id;
 var BASE_URL = 'http://hdserials.galanov.net';
 var LOGO = Plugin.path + "logo.png";
-var UA = 'Android;HD Serials v.1.14.47;ru-RU;google Nexus 4;SDK 10;v.2.3.3(REL)';
+var UA = 'Android;HD Serials v.1.14.48;ru-RU;google Nexus 4;SDK 10;v.2.3.3(REL)';
+var CryptoJS = require("crypto-js/crypto-js");
 var page = require('showtime/page');
 var service = require("showtime/service");
 var settings = require('showtime/settings');
@@ -215,27 +216,39 @@ function videoPage(page, data) {
             }
         }).toString();
 
-        var e ={};
-        window = (/window[^;]+/.exec(resp)[0].replace('window','e'))
-        //console.log(window)
-        eval(window);
         VideoBalancer = /new VideoBalancer\(([^\;]+\})/.exec(resp)[1];
-        //console.log(VideoBalancer);
         eval('options = ' + VideoBalancer);
+        log.p(options);
         url = (options.proto + options.host + /script src="([^"]+)/.exec(resp)[1]);
-        resp = http.request(url) //, { debug: service.debug });
-        post_data = (/getVideoManifests[\s\S]+?(var[\s\S]+?mw_key[^\]]+.)/g.exec(resp)[1].replace(/this./g, ''));
-        //console.log(post_data)
-        log.d(eval(post_data + ';\n post_data=n'));
+        // Получение ссылки на js-скрипт, где есть список параметров POST запроса
+        jsscript = http.request(url); //, { debug: service.debug });
+        //post_data = (/getVideoManifests[\s\S]+?(var[\s\S]+?mw_key[^\]]+.)/g.exec(resp)[1].replace(/this./g, ''));
+        //post_data = /getVideoManifests[\s\S]+?(var[\s\S]+?)var/g.exec(jsscript)[1].replace(/this./g, '').replace('window._mw_adb','false');
+
+        window_key = /window\['(\w+)'\]\s*=\s*'(\w+)'/g.exec(resp);
+        window_val = /eval\("window.*?[a-f0-9]{32}.*?([a-f0-9]{32})/g.exec(jsscript);
+        post_data = /getVideoManifests.*?\{(.*?\}\)\;)/g.exec(jsscript);
+        //remove this.
+        post_data = post_data[1].replace(/this./g, '');
+        //window["7268338cb2fefca17ebbd2be216fd1de"]
+        post_data = post_data.replace('window["' + window_key[1] + '"]', '"' + window_val[1] + '"');
+        //window._mw_adb
+        post_data = post_data.replace('window._mw_adb', 'false');
+        //navigator.userAgent
+        post_data = post_data.replace('navigator.userAgent', '"' + UA + '"');
+        //$.ajax
+        post_data = post_data.replace('$.ajax', 'log.p');
+        eval(post_data)
+        //console.log(post_data.replace(/\,/g, ',\n'))
+        log.d({postdata: r})
+        log.d(eval('post_url=' + /url:("[^,]+)/.exec(jsscript)[1].replace(/this./g, '')));
+
         //header = /(headers:[^}]+)/.exec(resp)[1].replace(':{', '[').replace(':', ']=');
-        log.d(eval('post_url=' + /url:("[^,]+)/.exec(resp)[1].replace(/this./g, '')));
-
-
         headers = {
             "Origin": "http://moonwalk.cc",
             "Accept-Encoding": "gzip, deflate",
-            "Accept-Language": "en-US,en;q=0.8,ru;q=0.6",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36",
+            "Accept-Language": "ru,en-US;q=0.9,en;q=0.8,zh;q=0.7",
+            "User-Agent": UA,
             "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
             "Accept": "application/json, text/javascript, */*; q=0.01",
             "Referer": data.url,
@@ -245,19 +258,21 @@ function videoPage(page, data) {
         post = {
             debug: service.debug,
             headers: headers,
-            postdata: post_data
+            postdata: {
+                q: i.toString()
+            }
         };
         log.d(post)
         log.d(options.proto + options.host + post_url)
         var responseText = http.request(options.proto + options.host + post_url, post).toString();
         log.d('manifesty')
         log.d(JSON.parse(responseText));
-        manifest_m3u8 = JSON.parse(responseText.match(/"manifest_m3u8":("[^"]+")/)[1]);
-        result_url = manifest_m3u8;
+
+        manifest_m3u8 = JSON.parse(responseText).m3u8;
         videoparams.sources = [{
             url: manifest_m3u8
-          }
-        ];
+        }];
+
         video = "videoparams:" + JSON.stringify(videoparams);
         page.appendItem(video, "video", {
             title: "[Auto]" + " | " + data.title,
@@ -279,6 +294,10 @@ function videoPage(page, data) {
                         url: myArray[2]
                     }];
                     video = "videoparams:" + JSON.stringify(videoparams);
+                    log.d(video);
+                    log.d(videoparams.canonicalUrl == (PREFIX + ":play:" + JSON.stringify(data)));
+                    log.d(data)
+
                     page.appendItem(video, "video", {
                         title: "[" + myArray[1] + "]" + " | " + data.title,
                         icon: data.icon
@@ -292,8 +311,8 @@ function videoPage(page, data) {
         }
         //MP4
         try {
-            if (null != JSON.parse(responseText).mans.manifest_mp4) {
-                var video_urls = http.request(JSON.parse(responseText).mans.manifest_mp4, {
+            if (null != JSON.parse(responseText).mp4) {
+                var video_urls = http.request(JSON.parse(responseText).mp4, {
                     header: {
                         "User-Agent": UA
                     }
@@ -311,8 +330,8 @@ function videoPage(page, data) {
                 }
             }
         } catch (error) {
-            log.e('oshibks v MP4');
-            log.e(error.stack);
+            log.d('oshibks v MP4');
+            log.d(error.stack);
         }
 
         // null != this.options.subtitles && (r = [], null != this.options.subtitles.master_vtt && r.push({
